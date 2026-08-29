@@ -1,0 +1,150 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  DOCTOR
+  PATIENT
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String
+  fullName      String
+  phone         String?
+  role          Role      @default(PATIENT)
+  profileImage  String?
+  dateOfBirth   DateTime?
+  gender        String?
+  address       String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  patient       Patient?
+  doctor        Doctor?
+}
+
+model Patient {
+  id               String         @id @default(uuid())
+  userId           String         @unique
+  user             User           @relation(fields: [userId], references: [id])
+  patientNumber    String         @unique
+  bloodType        String?
+  allergies        String?
+  medicalHistory   String?
+  emergencyContact String?
+  emergencyPhone   String?
+  
+  appointments     Appointment[]
+  medicalRecords   MedicalRecord[]
+  dentalCharts     DentalChart[]
+  treatmentPlans   TreatmentPlan[]
+  invoices         Invoice[]
+}
+
+model Doctor {
+  id              String         @id @default(uuid())
+  userId          String         @unique
+  user            User           @relation(fields: [userId], references: [id])
+  specialty       String
+  licenseNumber   String         @unique
+  experienceYears Int
+  biography       String?
+  consultationFee Float
+  workingHours    Json?
+
+  appointments    Appointment[]
+  medicalRecords  MedicalRecord[]
+}
+
+model Service {
+  id           String        @id @default(uuid())
+  name         String
+  description  String?
+  category     String
+  price        Float
+  duration     Int
+  isActive     Boolean       @default(true)
+  appointments Appointment[]
+}
+
+model Appointment {
+  id              String            @id @default(uuid())
+  patientId       String
+  patient         Patient           @relation(fields: [patientId], references: [id])
+  doctorId        String
+  doctor          Doctor            @relation(fields: [doctorId], references: [id])
+  serviceId       String
+  service         Service           @relation(fields: [serviceId], references: [id])
+  appointmentDate DateTime
+  startTime       DateTime
+  endTime         DateTime
+  status          AppointmentStatus @default(PENDING)
+  notes           String?
+  
+  medicalRecord   MedicalRecord?
+  invoice         Invoice?
+}
+
+model MedicalRecord {
+  id            String      @id @default(uuid())
+  patientId     String
+  patient       Patient     @relation(fields: [patientId], references: [id])
+  doctorId      String
+  doctor        Doctor      @relation(fields: [doctorId], references: [id])
+  appointmentId String      @unique
+  appointment   Appointment @relation(fields: [appointmentId], references: [id])
+  diagnosis     String
+  treatment     String
+  notes         String?
+}
+
+model DentalChart {
+  id          String   @id @default(uuid())
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id])
+  toothNumber Int
+  condition   String
+  notes       String?
+  updatedAt   DateTime @updatedAt
+}
+
+model TreatmentPlan {
+  id            String   @id @default(uuid())
+  patientId     String
+  patient       Patient  @relation(fields: [patientId], references: [id])
+  title         String
+  description   String?
+  estimatedCost Float
+  status        String
+  createdAt     DateTime @default(now())
+}
+
+model Invoice {
+  id            String      @id @default(uuid())
+  patientId     String
+  patient       Patient     @relation(fields: [patientId], references: [id])
+  appointmentId String      @unique
+  appointment   Appointment @relation(fields: [appointmentId], references: [id])
+  amount        Float
+  paidAmount    Float       @default(0)
+  status        String      @default("UNPAID")
+  dueDate       DateTime
+  createdAt     DateTime    @default(now())
+}
